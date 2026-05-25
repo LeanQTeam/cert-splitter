@@ -327,31 +327,34 @@ async function extractNamesFromPDF(bytes, numPages) {
 
   // ── Decode TJ array with Latin-1 parenthesized strings ────────────────────
   function decodeTextTJ(arr) {
-    // F1 uses WinAnsiEncoding. Chars > 127 map via Windows-1252 / CP1250 for Polish.
     const W = {
       0x8C:'Ś',0x9C:'ś',0x8A:'Š',0x9A:'š',0x8E:'Ž',0x9E:'ž',
       0xA3:'Ł',0xAF:'Ż',0xB3:'ł',0xB9:'ą',0xBF:'ż',
-      0xC0:'À',0xC1:'Á',0xC2:'Â',0xC3:'Ă',0xC4:'Ä',
-      0xC5:'Ą',0xC6:'Ć',0xC7:'Ç',0xC8:'Č',0xC9:'É',
-      0xCA:'Ę',0xCB:'Ë',0xCC:'Ì',0xCD:'Í',0xCE:'Î',
-      0xCF:'Ï',0xD0:'Đ',0xD1:'Ń',0xD2:'Ò',0xD3:'Ó',
-      0xD4:'Ô',0xD5:'Ő',0xD6:'Ö',0xD8:'Ř',0xD9:'Ů',
-      0xDA:'Ú',0xDB:'Ű',0xDC:'Ü',0xDD:'Ý',0xDE:'Ţ',
-      0xDF:'ß',0xE0:'ŕ',0xE1:'á',0xE2:'â',0xE3:'ă',
-      0xE4:'ä',0xE5:'ĺ',0xE6:'ć',0xE7:'ç',0xE8:'č',
-      0xE9:'é',0xEA:'ę',0xEB:'ë',0xEC:'ě',0xED:'í',
-      0xEE:'î',0xEF:'ï',0xF0:'đ',0xF1:'ń',0xF2:'ň',
-      0xF3:'ó',0xF4:'ô',0xF5:'ő',0xF6:'ö',0xF8:'ř',
-      0xF9:'ů',0xFA:'ú',0xFB:'ű',0xFC:'ü',0xFD:'ý',
-      0xFE:'ţ',0xFF:'˙',
+      0xC5:'Ą',0xC6:'Ć',0xC8:'Č',0xCA:'Ę',
+      0xD1:'Ń',0xD3:'Ó',0xD5:'Ő',
+      0xDA:'Ú',0xDB:'Ű',0xDC:'Ü',
+      0xDF:'ß',
+      0xE1:'á',0xE6:'ć',0xE8:'č',0xE9:'é',
+      0xEA:'ę',0xEC:'ě',0xED:'í',
+      0xF1:'ń',0xF2:'ň',0xF3:'ó',0xF5:'ő',
+      0xF6:'ö',0xF9:'ů',0xFA:'ú',0xFB:'ű',
+      0xFC:'ü',0xFD:'ý',
     };
-    let r='';
-    for(const m of arr.matchAll(/\(([^)]*)\)/g)){
-      const s=m[1].replace(/\\\\(/g,'(').replace(/\\\\)/g,')');
-      for(const ch of s){
-        const c=ch.charCodeAt(0);
-        r += (c>127 && W[c]) ? W[c] : ch;
-      }
+    let r = "";
+    // Extract strings between ( ) — split approach avoids regex escaping issues
+    let i = 0;
+    while (i < arr.length) {
+      if (arr[i] === "(") {
+        let s = "", j = i + 1;
+        while (j < arr.length) {
+          if (arr[j] === "\\" && j+1 < arr.length) {
+            s += arr[j+1]; j += 2;
+          } else if (arr[j] === ")") { j++; break; }
+          else { s += arr[j]; j++; }
+        }
+        for (const ch of s) { const c = ch.charCodeAt(0); r += (c > 127 && W[c]) ? W[c] : ch; }
+        i = j;
+      } else { i++; }
     }
     return r;
   }
