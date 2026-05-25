@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certyfikaty LeanQ — Podział PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#F5F4F0;--surface:#FFF;--ink:#1A1A1A;--ink-muted:#6B6B6B;
+    --light:#E8E6E0;--success:#2D6A4F;--success-bg:#EAF4EE;
+    --warn:#8B4513;--warn-bg:#FDF3EC;--border:#E0DDD6;
+    --r:12px;--rs:8px;
+  }
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 24px 80px}
+  header{width:100%;max-width:680px;margin-bottom:32px}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  h1{font-size:21px;font-weight:600;letter-spacing:-.3px}
+  .subtitle{font-size:13px;color:var(--ink-muted);margin-left:48px;line-height:1.6}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+    width:100%;max-width:680px;overflow:hidden}
+  #drop-zone{padding:52px 40px;text-align:center;cursor:pointer;
+    transition:background .15s;border-bottom:1px solid var(--border)}
+  #drop-zone:hover,#drop-zone.drag-over{background:var(--light)}
+  .drop-icon{display:block;margin:0 auto 16px;opacity:.65}
+  .drop-title{font-size:15px;font-weight:500;margin-bottom:4px}
+  .drop-hint{font-size:12px;color:var(--ink-muted)}
+  .drop-hint span{text-decoration:underline;cursor:pointer}
+  #file-input{display:none}
+  #file-bar{display:none;align-items:center;gap:12px;padding:13px 24px;
+    border-bottom:1px solid var(--border);background:var(--light)}
+  #file-name{font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #file-pages{font-size:12px;color:var(--ink-muted);font-family:'DM Mono',monospace;white-space:nowrap}
+  #change-btn{font-size:12px;color:var(--ink-muted);background:none;border:1px solid var(--border);
+    border-radius:6px;padding:4px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;
+    transition:background .12s;white-space:nowrap}
+  #change-btn:hover{background:var(--border)}
+  #status-area{display:none;padding:18px 24px;border-bottom:1px solid var(--border)}
+  .pb-wrap{background:var(--border);border-radius:99px;height:5px;overflow:hidden;margin-bottom:8px}
+  #progress-bar{height:100%;width:0%;background:var(--ink);border-radius:99px;transition:width .25s}
+  #progress-label{font-size:12px;color:var(--ink-muted);font-family:'DM Mono',monospace}
+  #results-section{display:none}
+  .section-header{padding:13px 24px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between}
+  #results-list{max-height:400px;overflow-y:auto}
+  .result-row{display:grid;grid-template-columns:28px 1fr auto;align-items:center;
+    gap:10px;padding:9px 24px;border-bottom:1px solid var(--border)}
+  .result-row:last-child{border-bottom:none}
+  .result-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink-muted);text-align:right}
+  .name-input{font-family:'DM Sans',sans-serif;font-size:13px;border:1px solid var(--border);
+    border-radius:6px;padding:4px 10px;width:100%;outline:none;background:var(--bg);color:var(--ink);
+    transition:border-color .12s}
+  .name-input:focus{border-color:var(--ink)}
+  .name-input.needs-input{border-color:#C0392B;background:#fff8f6}
+  .rbadge{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+    border-radius:4px;padding:2px 6px;white-space:nowrap}
+  .badge-ok{background:var(--success-bg);color:var(--success)}
+  .badge-edit{background:var(--warn-bg);color:var(--warn)}
+  #actions{display:none;flex-direction:column;gap:10px;padding:18px 24px}
+  .info-msg{font-size:12px;color:var(--warn);background:var(--warn-bg);border-radius:8px;
+    padding:10px 14px;display:none;line-height:1.5}
+  #download-btn{width:100%;padding:13px;background:var(--ink);color:#fff;border:none;
+    border-radius:var(--rs);font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;
+    cursor:pointer;letter-spacing:-.2px;transition:opacity .15s;
+    display:flex;align-items:center;justify-content:center;gap:8px}
+  #download-btn:hover:not(:disabled){opacity:.85}
+  #download-btn:disabled{opacity:.4;cursor:not-allowed}
+  .how-hint{font-size:12px;color:var(--ink-muted);text-align:center}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <rect width="36" height="36" rx="8" fill="#1A1A1A"/>
+      <rect x="9" y="8" width="13" height="17" rx="2" fill="white" opacity="0.15"/>
+      <rect x="11" y="10" width="13" height="17" rx="2" fill="white" opacity="0.25"/>
+      <rect x="13" y="12" width="13" height="17" rx="2" fill="white" opacity="0.9"/>
+      <line x1="16" y1="17" x2="23" y2="17" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="16" y1="20" x2="21" y2="20" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="16" y1="23" x2="23" y2="23" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <h1>Podział certyfikatów PDF</h1>
+  </div>
+  <p class="subtitle">Certyfikaty LeanQ Team eksportowane z Access.<br>
+  Program automatycznie odczyta nazwiska i podzieli plik na osobne certyfikaty.</p>
+</header>
+
+<div class="card">
+  <div id="drop-zone">
+    <svg class="drop-icon" width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <rect x="8" y="4" width="22" height="30" rx="2.5" stroke="#1A1A1A" stroke-width="1.8"/>
+      <path d="M23 4v9h7" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="33" cy="33" r="9" fill="#F5F4F0" stroke="#1A1A1A" stroke-width="1.8"/>
+      <line x1="33" y1="28.5" x2="33" y2="37.5" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="28.5" y1="33" x2="37.5" y2="33" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <p class="drop-title">Przeciągnij plik PDF tutaj</p>
+    <p class="drop-hint">lub <span id="browse-link">wybierz z dysku</span></p>
+    <input type="file" id="file-input" accept=".pdf">
+  </div>
+
+  <div id="file-bar">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="1" width="9" height="13" rx="1.5" stroke="#1A1A1A" stroke-width="1.4"/>
+      <path d="M8.5 1v4h3.5" stroke="#1A1A1A" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+    <span id="file-name">—</span>
+    <span id="file-pages">—</span>
+    <button id="change-btn">Zmień plik</button>
+  </div>
+
+  <div id="status-area">
+    <div class="pb-wrap"><div id="progress-bar"></div></div>
+    <span id="progress-label">Wczytuję…</span>
+  </div>
+
+  <div id="results-section">
+    <div class="section-header">
+      <span>Rozpoznane certyfikaty</span>
+      <span id="results-count" style="font-family:'DM Mono',monospace;font-size:11px"></span>
+    </div>
+    <div id="results-list"></div>
+  </div>
+
+  <div id="actions">
+    <div class="info-msg" id="warn-msg"></div>
+    <button id="download-btn" disabled>
+      <div class="spinner" id="btn-spinner"></div>
+      <span id="btn-label">Pobierz ZIP z plikami</span>
+    </button>
+    <p class="how-hint">Każdy certyfikat jako osobny plik PDF — nazwany imieniem i nazwiskiem</p>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let pdfBytes   = null;
+let pageNames  = [];
+let totalPages = 0;
+
+// ─── REFS ────────────────────────────────────────────────────────────────────
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const browseLink  = document.getElementById('browse-link');
+const fileBar     = document.getElementById('file-bar');
+const fileNameEl  = document.getElementById('file-name');
+const filePagesEl = document.getElementById('file-pages');
+const changeBtn   = document.getElementById('change-btn');
+const statusArea  = document.getElementById('status-area');
+const progressBar = document.getElementById('progress-bar');
+const progressLbl = document.getElementById('progress-label');
+const resultsSec  = document.getElementById('results-section');
+const resultsList = document.getElementById('results-list');
+const resultsCount= document.getElementById('results-count');
+const actionsDiv  = document.getElementById('actions');
+const warnMsg     = document.getElementById('warn-msg');
+const downloadBtn = document.getElementById('download-btn');
+const btnSpinner  = document.getElementById('btn-spinner');
+const btnLabel    = document.getElementById('btn-label');
+
+// ─── DRAG & DROP ─────────────────────────────────────────────────────────────
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type==='application/pdf') handleFile(f); else alert('Wybierz plik PDF.');
+});
+browseLink.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',()=>{if(fileInput.files[0])handleFile(fileInput.files[0])});
+changeBtn.addEventListener('click',()=>{resetUI();fileInput.value='';fileInput.click()});
+
+// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
+async function handleFile(file) {
+  resetUI();
+  fileNameEl.textContent = file.name;
+  fileBar.style.display = 'flex';
+  dropZone.style.display = 'none';
+  statusArea.style.display = 'block';
+  setProgress(5,'Wczytuję plik…');
+
+  try {
+    const buffer = await file.arrayBuffer();
+    pdfBytes = new Uint8Array(buffer);
+
+    setProgress(20,'Liczę strony…');
+    const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes,{ignoreEncryption:true});
+    totalPages = pdfDoc.getPageCount();
+    filePagesEl.textContent = totalPages+' '+pageWord(totalPages);
+
+    setProgress(40,'Dekompresuję strumienie…');
+    const names = await extractNamesFromPDF(pdfBytes, totalPages);
+    setProgress(90,'Przygotowuję listę…');
+
+    pageNames = [];
+    for(let i=0;i<totalPages;i++){
+      const name = (names[i]||'').trim();
+      pageNames.push({page:i+1, name, auto:!!name});
+    }
+
+    setProgress(100,'Gotowe.');
+    setTimeout(()=>{
+      statusArea.style.display='none';
+      resultsSec.style.display='block';
+      actionsDiv.style.display='flex';
+      renderResults();
+      updateDownloadBtn();
+    },200);
+
+  } catch(err) {
+    setProgress(0,'Błąd: '+err.message);
+    console.error(err);
+  }
+}
+
+// ─── PDF NAME EXTRACTION ─────────────────────────────────────────────────────
+// Works specifically with Access "Eksportuj do PDF" format.
+// Names are stored in the largest-font BT block per page content stream.
+// Font F1 uses parenthesized Latin-1 strings; Font F2 uses CID hex strings.
+async function extractNamesFromPDF(bytes, numPages) {
+  const raw = bytes;
+
+  // ── DecompressionStream (browser-native zlib) ──────────────────────────────
+  async function inflate(data) {
+    const ds = new DecompressionStream('deflate');
+    const writer = ds.writable.getWriter();
+    const reader = ds.readable.getReader();
+    writer.write(data);
+    writer.close();
+    const chunks = [];
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      chunks.push(value);
+    }
+    const total = chunks.reduce((s,c)=>s+c.length,0);
+    const out = new Uint8Array(total);
+    let off=0;
+    for(const c of chunks){out.set(c,off);off+=c.length;}
+    return out;
+  }
+
+  function bytesToLatin1(b){ return Array.from(b).map(c=>String.fromCharCode(c)).join(''); }
+
+  // ── Find object at specific position ──────────────────────────────────────
+  function findObjStart(oid) {
+    const pat = encoder.encode(oid+' 0 obj\r\n');
+    for(let i=0;i<raw.length-pat.length;i++){
+      let ok=true;
+      for(let j=0;j<pat.length;j++) if(raw[i+j]!==pat[j]){ok=false;break;}
+      if(ok) return i;
+    }
+    return -1;
+  }
+
+  const encoder = new TextEncoder();
+  const STREAM_MARKER  = encoder.encode('stream\r\n');
+  const ENDSTREAM      = encoder.encode('\r\nendstream');
+  const FLATDECODE     = encoder.encode('FlateDecode');
+
+  function findBytes(buf, pattern, start=0) {
+    outer: for(let i=start;i<=buf.length-pattern.length;i++){
+      for(let j=0;j<pattern.length;j++) if(buf[i+j]!==pattern[j]) continue outer;
+      return i;
+    }
+    return -1;
+  }
+
+  async function getStream(oid) {
+    const objStart = findObjStart(oid);
+    if(objStart<0) return null;
+    const streamPos = findBytes(raw, STREAM_MARKER, objStart);
+    if(streamPos<0 || streamPos-objStart>1500) return null;
+    const dataStart = streamPos + STREAM_MARKER.length;
+    const endPos = findBytes(raw, ENDSTREAM, dataStart);
+    if(endPos<0) return null;
+    const hdr = bytesToLatin1(raw.slice(objStart, streamPos));
+    const data = raw.slice(dataStart, endPos);
+    if(hdr.includes('FlateDecode')) {
+      try {
+        const dec = await inflate(data);
+        return bytesToLatin1(dec);
+      } catch(e) { return null; }
+    }
+    return bytesToLatin1(data);
+  }
+
+  // ── Parse ToUnicode CMap ───────────────────────────────────────────────────
+  function parseCMap(text) {
+    const gmap = {};
+    for(const line of text.split('\n')) {
+      const m2 = line.match(/^\s*<([0-9A-Fa-f]+)>\s+<([0-9A-Fa-f]+)>\s+<([0-9A-Fa-f]+)>/);
+      if(m2) {
+        const gs=parseInt(m2[1],16), ge=parseInt(m2[2],16), us=parseInt(m2[3],16);
+        for(let i=0;i<=ge-gs;i++) gmap[gs+i]=us+i;
+        continue;
+      }
+      const m = line.match(/^\s*<([0-9A-Fa-f]+)>\s+<([0-9A-Fa-f]+)>/);
+      if(m) gmap[parseInt(m[1],16)] = parseInt(m[2],16);
+    }
+    return gmap;
+  }
+
+  // ── Decode TJ array with CID hex ──────────────────────────────────────────
+  function decodeHexTJ(arr, gmap) {
+    let r='';
+    for(const h of arr.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+      const s=h[1];
+      for(let i=0;i<s.length;i+=4){
+        const chunk=s.slice(i,i+4);
+        if(chunk.length===4){const g=parseInt(chunk,16);if(g in gmap)r+=String.fromCharCode(gmap[g]);}
+      }
+    }
+    return r;
+  }
+
+  // ── Decode TJ array with Latin-1 parenthesized strings ────────────────────
+  function decodeTextTJ(arr) {
+    let r='';
+    for(const m of arr.matchAll(/\(([^)]*)\)/g)) r+=m[1].replace(/\\\(/g,'(').replace(/\\\)/g,')');
+    return r;
+  }
+
+  // ── Find page tree and content stream IDs ─────────────────────────────────
+  // Get Pages kids array (object 2 = Pages in standard Access PDFs)
+  let kidsStr = '';
+  for(let oid=1;oid<=5;oid++){
+    const dec = await getStream(oid); // might not be a stream
+    // Try to read pages object directly
+    const pos = findObjStart(oid);
+    if(pos<0) continue;
+    const endobj = findBytes(raw, encoder.encode('endobj'), pos);
+    const objText = endobj>0 ? bytesToLatin1(raw.slice(pos, endobj)) : '';
+    if(objText.includes('/Type/Pages') && objText.includes('/Kids')) {
+      const km = objText.match(/\/Kids\s*\[([^\]]+)\]/);
+      if(km) { kidsStr = km[1]; break; }
+    }
+  }
+
+  const pageObjIds = kidsStr.match(/(\d+) 0 R/g)?.map(s=>parseInt(s)) || [];
+
+  // For each page object, get its /Contents reference
+  const contentIds = [];
+  for(const pgId of pageObjIds) {
+    const pos = findObjStart(pgId);
+    if(pos<0){ contentIds.push(null); continue; }
+    const endobj = findBytes(raw, encoder.encode('endobj'), pos);
+    const objText = endobj>0 ? bytesToLatin1(raw.slice(pos, endobj)) : '';
+    const cm = objText.match(/\/Contents (\d+) 0 R/);
+    contentIds.push(cm ? parseInt(cm[1]) : null);
+  }
+
+  // ── Find CMap (try objects 49-56 range, typical for Access PDFs) ──────────
+  let gmap = null;
+  for(let oid=48;oid<=58;oid++){
+    const dec = await getStream(oid);
+    if(dec && (dec.includes('beginbfchar')||dec.includes('beginbfrange'))){
+      gmap = parseCMap(dec);
+      break;
+    }
+  }
+
+  // ── Extract name from each content stream ─────────────────────────────────
+  const NAME_SIZE_MIN = 18.0;
+  const names = [];
+
+  for(let i=0;i<contentIds.length;i++){
+    const cid = contentIds[i];
+    if(!cid){ names.push(''); continue; }
+    const dec = await getStream(cid);
+    if(!dec){ names.push(''); continue; }
+
+    // Parse all BT...ET blocks, find the one with largest font size
+    let bestSize = 0;
+    let bestText = '';
+
+    const btBlocks = [...dec.matchAll(/BT\r?\n([\s\S]*?)ET/g)];
+    for(const bm of btBlocks) {
+      const block = bm[1];
+      const tfm = block.match(/\/(F\d+)\s+([\d.]+)\s+Tf/);
+      if(!tfm) continue;
+      const fontName = tfm[1];
+      const fontSize = parseFloat(tfm[2]);
+      if(fontSize < NAME_SIZE_MIN) continue;
+
+      let text = '';
+      for(const tjm of block.matchAll(/\[([^\]]*)\]\s*TJ/g)) {
+        const arr = tjm[1];
+        if(fontName==='F2' && gmap) text += decodeHexTJ(arr, gmap);
+        else text += decodeTextTJ(arr);
+      }
+      text = text.trim();
+      if(text && fontSize >= bestSize) {
+        if(fontSize > bestSize) { bestSize=fontSize; bestText=text; }
+        else bestText += ' '+text;
+      }
+    }
+    names.push(bestText.trim());
+  }
+
+  return names;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderResults(){
+  resultsList.innerHTML='';
+  const missing = pageNames.filter(p=>!p.name).length;
+  const found   = pageNames.filter(p=>p.name).length;
+  resultsCount.textContent = found+'/'+pageNames.length+' rozpoznanych';
+
+  pageNames.forEach((item,idx)=>{
+    const row=document.createElement('div');
+    row.className='result-row';
+    const numEl=document.createElement('span');
+    numEl.className='result-num';
+    numEl.textContent=item.page;
+    const inp=document.createElement('input');
+    inp.className='name-input'+(item.name?'':' needs-input');
+    inp.value=item.name;
+    inp.placeholder='Wpisz imię i nazwisko…';
+    inp.addEventListener('input',()=>{
+      pageNames[idx].name=inp.value.trim();
+      const ok=inp.value.trim().length>1;
+      badge.className='rbadge '+(ok?'badge-ok':'badge-edit');
+      badge.textContent=ok?'OK':'WPISZ';
+      inp.className='name-input'+(ok?'':' needs-input');
+      updateDownloadBtn();
+    });
+    const badge=document.createElement('span');
+    badge.className='rbadge '+(item.name?'badge-ok':'badge-edit');
+    badge.textContent=item.name?'OK':'WPISZ';
+    row.appendChild(numEl);row.appendChild(inp);row.appendChild(badge);
+    resultsList.appendChild(row);
+  });
+
+  if(missing>0){
+    warnMsg.textContent=missing+(missing===1
+      ?' strona — nie udało się odczytać nazwiska. Uzupełnij ręcznie (czerwone pole).'
+      :' stron — nie udało się odczytać nazwisk. Uzupełnij ręcznie (czerwone pola).');
+    warnMsg.style.display='block';
+  } else {
+    warnMsg.style.display='none';
+  }
+}
+
+function updateDownloadBtn(){
+  downloadBtn.disabled=!pageNames.every(p=>p.name&&p.name.length>1);
+}
+
+// ─── DOWNLOAD ────────────────────────────────────────────────────────────────
+downloadBtn.addEventListener('click', async () => {
+  downloadBtn.disabled = true;
+  btnSpinner.style.display = 'block';
+  warnMsg.style.display = 'none';
+  btnLabel.textContent = 'Przygotowuję pliki…';
+
+  try {
+    const zip = new JSZip();
+    const counts = {};
+    const total = pageNames.length;
+
+    for (let i = 0; i < total; i++) {
+      const item = pageNames[i];
+      btnLabel.textContent = `Strona ${i+1} / ${total}…`;
+
+      // Build single-page PDF using pdf-lib with full error handling
+      const singleBytes = await buildSinglePagePDF(pdfBytes, item.page - 1);
+
+      const safe = sanitize(item.name);
+      const n = counts[safe] || 0;
+      counts[safe] = n + 1;
+      const fname = n === 0 ? safe + '.pdf' : safe + ' (' + n + ').pdf';
+      zip.file(fname, singleBytes);
+    }
+
+    btnLabel.textContent = 'Pakuję ZIP…';
+    const blob = await zip.generateAsync({
+      type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 }
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'certyfikaty.zip'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    btnLabel.textContent = 'Pobrano ' + total + ' plików';
+    btnSpinner.style.display = 'none';
+    downloadBtn.disabled = false;
+
+  } catch (err) {
+    console.error('Download error:', err);
+    warnMsg.textContent = 'Błąd: ' + err.message;
+    warnMsg.style.display = 'block';
+    btnLabel.textContent = 'Pobierz ZIP z plikami';
+    btnSpinner.style.display = 'none';
+    downloadBtn.disabled = false;
+  }
+});
+
+// Build a single-page PDF from source bytes, page index 0-based
+async function buildSinglePagePDF(srcBytes, pageIndex) {
+  // Try pdf-lib first (handles most cases)
+  const tryOpts = [
+    { ignoreEncryption: true, throwOnInvalidObject: false },
+    { ignoreEncryption: true },
+    {},
+  ];
+  for (const opts of tryOpts) {
+    try {
+      const srcDoc = await PDFLib.PDFDocument.load(srcBytes, opts);
+      const newDoc = await PDFLib.PDFDocument.create();
+      const [pg] = await newDoc.copyPages(srcDoc, [pageIndex]);
+      newDoc.addPage(pg);
+      return await newDoc.save();
+    } catch (e) {
+      // try next option
+    }
+  }
+
+  // Fallback: re-assemble minimal valid PDF with the raw page content
+  // by using qpdf-inspired approach: extract page objects by walking xref
+  return await buildPagePDFFromRawBytes(srcBytes, pageIndex);
+}
+
+// Raw fallback: construct minimal PDF containing one page
+// by extracting needed objects from the source PDF binary
+async function buildPagePDFFromRawBytes(srcBytes, pageIndex) {
+  // Use DecompressionStream to read compressed objects
+  async function inflate(data) {
+    const ds = new DecompressionStream('deflate');
+    const w = ds.writable.getWriter();
+    const r = ds.readable.getReader();
+    w.write(data); w.close();
+    const chunks = [];
+    while (true) { const {done,value} = await r.read(); if(done) break; chunks.push(value); }
+    const out = new Uint8Array(chunks.reduce((s,c)=>s+c.length,0));
+    let off=0; for(const c of chunks){out.set(c,off);off+=c.length;}
+    return out;
+  }
+  function b2s(b){ return Array.from(b).map(c=>String.fromCharCode(c)).join(''); }
+  function s2b(s){ return new Uint8Array(s.split('').map(c=>c.charCodeAt(0))); }
+  function findStr(haystack, needle, from=0){
+    const n=s2b(needle);
+    outer: for(let i=from;i<=haystack.length-n.length;i++){
+      for(let j=0;j<n.length;j++) if(haystack[i+j]!==n[j]) continue outer;
+      return i;
+    }
+    return -1;
+  }
+
+  // Parse object positions using "N 0 obj\r\n" pattern
+  function findObjPos(oid){
+    const pat = s2b(oid+' 0 obj\r\n');
+    return findStr(srcBytes, oid+' 0 obj\r\n');
+  }
+
+  async function readStreamAtPos(pos) {
+    const sPos = findStr(srcBytes, 'stream\r\n', pos);
+    if(sPos<0 || sPos-pos>1500) return null;
+    const dStart = sPos+8;
+    const ePos = findStr(srcBytes, '\r\nendstream', dStart);
+    if(ePos<0) return null;
+    const hdr = b2s(srcBytes.slice(pos, sPos));
+    const data = srcBytes.slice(dStart, ePos);
+    if(hdr.includes('FlateDecode')){
+      try{ return b2s(await inflate(data)); } catch(e){ return null; }
+    }
+    return b2s(data);
+  }
+
+  // Find Pages kids
+  let kids = [];
+  for(let oid=1;oid<=5;oid++){
+    const pos = findObjPos(oid);
+    if(pos<0) continue;
+    const epos = findStr(srcBytes,'endobj',pos);
+    if(epos<0) continue;
+    const t = b2s(srcBytes.slice(pos,epos));
+    if(t.includes('/Type/Pages')){
+      const km = t.match(/\/Kids\s*\[([^\]]+)\]/);
+      if(km) { kids = [...km[1].matchAll(/(\d+) 0 R/g)].map(m=>parseInt(m[1])); break; }
+    }
+  }
+
+  const pgOid = kids[pageIndex];
+  if(!pgOid) throw new Error(`Nie znaleziono strony ${pageIndex+1}`);
+
+  const pgPos = findObjPos(pgOid);
+  const pgEpos = findStr(srcBytes,'endobj',pgPos);
+  const pgText = b2s(srcBytes.slice(pgPos,pgEpos));
+
+  const contM = pgText.match(/\/Contents (\d+) 0 R/);
+  const contOid = contM ? parseInt(contM[1]) : null;
+
+  // Collect all shared objects (fonts, images, etc.) by scanning the page dict
+  const allRefs = new Set();
+  for(const m of pgText.matchAll(/(\d+) 0 R/g)) allRefs.add(parseInt(m[1]));
+  if(contOid) allRefs.add(contOid);
+
+  // Build new minimal PDF
+  // Collect object texts
+  const objTexts = {};
+  for(const oid of allRefs){
+    const pos2 = findObjPos(oid);
+    if(pos2<0) continue;
+    // Check if it's a stream object
+    const spos = findStr(srcBytes,'stream\r\n',pos2);
+    const eobj = findStr(srcBytes,'endobj',pos2);
+    if(spos>0 && spos<eobj){
+      // Include raw (possibly compressed) stream as-is
+      const rawEnd = findStr(srcBytes,'\r\nendstream',spos+8);
+      objTexts[oid] = b2s(srcBytes.slice(pos2, rawEnd+12)) + '\nendobj\n';
+    } else {
+      objTexts[oid] = b2s(srcBytes.slice(pos2, eobj)) + 'endobj\n';
+    }
+  }
+
+  // Also include the page object itself
+  objTexts[pgOid] = pgText + 'endobj\n';
+
+  // Build new pages tree
+  const newPagesOid = Math.max(...Object.keys(objTexts).map(Number)) + 1;
+  const newCatalogOid = newPagesOid + 1;
+
+  // Rewrite page to point to new pages
+  objTexts[pgOid] = objTexts[pgOid].replace(/\/Parent \d+ 0 R/, '/Parent '+newPagesOid+' 0 R');
+
+  // Find page MediaBox from original Pages or page object
+  let mediaBox = '[0 0 595 842]';
+  const mbM = pgText.match(/\/MediaBox\s*\[([^\]]+)\]/);
+  if(mbM) mediaBox = '['+mbM[1]+']';
+
+  objTexts[newPagesOid] = newPagesOid+' 0 obj\n<</Type/Pages/Kids ['+pgOid+' 0 R]/Count 1>>\nendobj\n';
+  objTexts[newCatalogOid] = newCatalogOid+' 0 obj\n<</Type/Catalog/Pages '+newPagesOid+' 0 R>>\nendobj\n';
+
+  // Assemble PDF
+  let pdf = '%PDF-1.4\n';
+  const offsets = {};
+  const allOids = Object.keys(objTexts).map(Number).sort((a,b)=>a-b);
+  for(const oid of allOids){
+    offsets[oid] = pdf.length;
+    pdf += objTexts[oid];
+  }
+
+  // xref
+  const xrefPos = pdf.length;
+  const maxOid = Math.max(...allOids);
+  pdf += 'xref\n0 1\n0000000000 65535 f \n';
+  for(const oid of allOids){
+    pdf += oid+' 1\n'+String(offsets[oid]).padStart(10,'0')+' 00000 n \n';
+  }
+  pdf += 'trailer\n<</Size '+(maxOid+1)+'/Root '+newCatalogOid+' 0 R>>\nstartxref\n'+xrefPos+'\n%%EOF\n';
+
+  return s2b(pdf);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function sanitize(n){return n.replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,' ').trim()}
+function setProgress(p,l){progressBar.style.width=p+'%';progressLbl.textContent=l}
+function pageWord(n){return n===1?'strona':n<=4?'strony':'stron'}
+function resetUI(){
+  pdfBytes=null;pageNames=[];totalPages=0;
+  fileBar.style.display='none';dropZone.style.display='block';
+  statusArea.style.display='none';resultsSec.style.display='none';
+  actionsDiv.style.display='none';warnMsg.style.display='none';
+  resultsList.innerHTML='';progressBar.style.width='0%';
+  btnLabel.textContent='Pobierz ZIP z plikami';
+  btnSpinner.style.display='none';downloadBtn.disabled=true;
+}
+</script>
+</body>
+</html>
